@@ -1,0 +1,133 @@
+name: build-librewolf-custom
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y wget tar python3 python3-pip rustc cargo clang llvm make nodejs git
+
+      - name: Download source
+        run: |
+          URL="https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
+          wget -qO source.tar.gz "$URL"
+
+      - name: Extract
+        run: |
+          tar xf source.tar.gz
+          cd librewolf-149.0.2-2.source
+
+      - name: Apply patch
+        run: |
+          cd librewolf-149.0.2-2.source
+          patch -p1 < ../webdriver-disable.patch
+
+      - name: Build
+        run: |
+          cd librewolf-149.0.2-2.source
+          ./mach build
+
+      - name: Package
+        run: |
+          cd librewolf-149.0.2-2.source
+          ./mach package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: librewolf-149.0.2-2.source/dist/
+
+  windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            base-devel
+            git
+            wget
+            tar
+            python
+            python-pip
+            mingw-w64-x86_64-toolchain
+            rust
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-nodejs
+
+      - name: Download source
+        run: |
+          URL="https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
+          wget -qO source.tar.gz "$URL"
+
+      - name: Extract
+        run: |
+          tar xf source.tar.gz
+
+      - name: Apply patch
+        run: |
+          patch -p1 < webdriver-disable.patch
+
+      - name: Build
+        run: |
+          cd librewolf-149.0.2-2.source
+          ./mach build
+
+      - name: Package
+        run: |
+          cd librewolf-149.0.2-2.source
+          ./mach package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: librewolf-149.0.2-2.source/dist/
+
+  release:
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: windows
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            linux/**
+            windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
