@@ -1,4 +1,4 @@
-name: build-librewolf-custom
+name: librewolf-custom-build
 
 on:
   push:
@@ -11,44 +11,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install deps
         run: |
           sudo apt update
-          sudo apt install -y wget tar python3 python3-pip rustc cargo clang llvm make nodejs git
+          sudo apt install -y wget tar python3 python3-pip rustc cargo clang llvm make nodejs git patch
 
       - name: Download source
         run: |
           URL="https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
           wget -qO source.tar.gz "$URL"
 
-      - name: Extract
+      - name: Extract source
         run: |
           tar xf source.tar.gz
-          cd librewolf-149.0.2-2.source
+          echo "Extracted structure:"
+          find . -maxdepth 2 -type d
+
+      - name: Detect source root
+        run: |
+          ROOT=$(find . -type f -path "*/dom/base/Navigator.cpp" | head -n 1 | sed 's|/dom/base/Navigator.cpp||')
+          echo "ROOT=$ROOT"
+          echo "ROOT=$ROOT" >> $GITHUB_ENV
 
       - name: Apply patch
         run: |
-          cd librewolf-149.0.2-2.source
-          patch -p1 < ../webdriver-disable.patch
+          cd "$ROOT"
+          patch -p1 < ../../webdriver-disable.patch
 
       - name: Build
         run: |
-          cd librewolf-149.0.2-2.source
+          cd "$ROOT"
           ./mach build
 
       - name: Package
         run: |
-          cd librewolf-149.0.2-2.source
+          cd "$ROOT"
           ./mach package
 
-      - name: Upload artifact
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: librewolf-149.0.2-2.source/dist/
+          path: ${{ env.ROOT }}/dist/
 
   windows:
     runs-on: windows-latest
@@ -58,8 +64,7 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -76,35 +81,44 @@ jobs:
             rust
             mingw-w64-x86_64-clang
             mingw-w64-x86_64-nodejs
+            patch
 
       - name: Download source
         run: |
           URL="https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
           wget -qO source.tar.gz "$URL"
 
-      - name: Extract
+      - name: Extract source
         run: |
           tar xf source.tar.gz
+          find . -maxdepth 2 -type d
+
+      - name: Detect source root
+        run: |
+          ROOT=$(find . -type f -path "*/dom/base/Navigator.cpp" | head -n 1 | sed 's|/dom/base/Navigator.cpp||')
+          echo "ROOT=$ROOT"
+          echo "ROOT=$ROOT" >> $GITHUB_ENV
 
       - name: Apply patch
         run: |
-          patch -p1 < webdriver-disable.patch
+          cd "$ROOT"
+          patch -p1 < ../../webdriver-disable.patch
 
       - name: Build
         run: |
-          cd librewolf-149.0.2-2.source
+          cd "$ROOT"
           ./mach build
 
       - name: Package
         run: |
-          cd librewolf-149.0.2-2.source
+          cd "$ROOT"
           ./mach package
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: librewolf-149.0.2-2.source/dist/
+          path: ${{ env.ROOT }}/dist/
 
   release:
     needs: [linux, windows]
@@ -123,7 +137,7 @@ jobs:
           name: windows-build
           path: windows
 
-      - name: Create release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
