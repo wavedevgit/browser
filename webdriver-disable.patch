@@ -1,0 +1,22 @@
+diff --git a/dom/base/Navigator.cpp b/dom/base/Navigator.cpp
+index b0210dd..1aeea22 100644
+--- a/dom/base/Navigator.cpp
++++ b/dom/base/Navigator.cpp
+@@ -2356,7 +2356,7 @@ bool Navigator::Webdriver() {
+     bool marionetteRunning = false;
+     marionette->GetRunning(&marionetteRunning);
+     if (marionetteRunning) {
+-      return true;
++      return false;
+     }
+   }
+ 
+@@ -2365,7 +2365,7 @@ bool Navigator::Webdriver() {
+     bool remoteAgentRunning = false;
+     agent->GetRunning(&remoteAgentRunning);
+     if (remoteAgentRunning) {
+-      return true;
++      return false;
+     }
+   }
+ #endif
