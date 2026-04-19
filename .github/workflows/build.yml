@@ -55,18 +55,18 @@ jobs:
         with:
           name: linux-build
           path: ${{ env.ROOT }}/dist/
-
+  
   windows:
     runs-on: windows-latest
-
+  
     defaults:
       run:
         shell: msys2 {0}
-
+  
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup MSYS2
+  
+      - name: Setup MSYS2 (WITH FIXED PYTHON)
         uses: msys2/setup-msys2@v2
         with:
           update: true
@@ -75,50 +75,49 @@ jobs:
             git
             wget
             tar
-            python
-            python-pip
-            mingw-w64-x86_64-toolchain
-            rust
-            mingw-w64-x86_64-clang
-            mingw-w64-x86_64-nodejs
             patch
-
+            make
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-clang
+            rust
+            mingw-w64-x86_64-nodejs
+            mingw-w64-x86_64-python
+  
+      - name: Force correct Python version
+        run: |
+          which python
+          python --version
+          ln -sf /mingw64/bin/python3 /usr/bin/python
+          ln -sf /mingw64/bin/python3 /usr/bin/python3
+  
       - name: Download source
         run: |
-          URL="https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
-          wget -qO source.tar.gz "$URL"
-
-      - name: Extract source
+          wget -qO source.tar.gz "https://codeberg.org/api/packages/librewolf/generic/librewolf-source/149.0.2-2/librewolf-149.0.2-2.source.tar.gz"
+  
+      - name: Extract
         run: |
           tar xf source.tar.gz
-          find . -maxdepth 2 -type d
-
-      - name: Detect source root
+  
+      - name: Detect root
         run: |
           ROOT=$(find . -type f -path "*/dom/base/Navigator.cpp" | head -n 1 | sed 's|/dom/base/Navigator.cpp||')
-          echo "ROOT=$ROOT"
           echo "ROOT=$ROOT" >> $GITHUB_ENV
-
+  
       - name: Apply patch
         run: |
           cd "$ROOT"
-          patch -p1 < ../webdriver-disable.patch
-
-      - name: Build
+          patch -p1 < ../../webdriver-disable.patch
+  
+      - name: Build (IMPORTANT FIX)
         run: |
           cd "$ROOT"
+          export MACH_USE_SYSTEM_PYTHON=1
           ./mach build
-
+  
       - name: Package
         run: |
           cd "$ROOT"
           ./mach package
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: ${{ env.ROOT }}/dist/
 
   release:
     needs: [linux, windows]
