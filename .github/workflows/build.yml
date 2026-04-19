@@ -38,7 +38,7 @@ jobs:
       - name: Apply patch
         run: |
           cd "$ROOT"
-          patch -p1 < ../../webdriver-disable.patch
+          patch -p1 < ../webdriver-disable.patch
 
       - name: Build
         run: |
@@ -102,7 +102,7 @@ jobs:
       - name: Apply patch
         run: |
           cd "$ROOT"
-          patch -p1 < ../../webdriver-disable.patch
+          patch -p1 < ../webdriver-disable.patch
 
       - name: Build
         run: |
