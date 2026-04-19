@@ -1,10 +1,12 @@
 name: librewolf-custom-build
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version"
+        required: false
+        default: "dev-build"
 
 jobs:
   linux:
@@ -136,11 +138,11 @@ jobs:
           name: windows-build
           path: windows
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.version }}
           files: |
             linux/**
             windows/**
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
